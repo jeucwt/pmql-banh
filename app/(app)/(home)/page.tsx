@@ -12,6 +12,9 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
   useEffect(() => {
     getDanhSachBanh()
       .then((data) => setProducts(data))
@@ -25,7 +28,13 @@ export default function Page() {
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Search Fillter */}
-        <SearchFilter />
+        <SearchFilter 
+          searchTerm={searchTerm} 
+          onSearchChange={setSearchTerm} 
+          categories={["all", ...Array.from(new Set(products.map(p => p.TenLoai))).filter(Boolean)]}
+          selectedCategory={selectedCategory}
+          onCategorySelect={setSelectedCategory}
+        />
         {loading && (
           <p className="text-center py-10" style={{ color: "#997E67" }}>
             Đang tải sản phẩm...
@@ -38,7 +47,12 @@ export default function Page() {
         {/* Tải bánh */}
         {!loading && !error && (
           <div className="grid grid-cols-4 gap-5">
-            {products.map((p) => {
+            {products
+              .filter((p) => 
+                (selectedCategory === "all" || p.TenLoai === selectedCategory) &&
+                (p.TenBanh.toLowerCase().includes(searchTerm.toLowerCase()))
+              )
+              .map((p) => {
               const giaThapNhat = p.sizes?.length > 0
                 ? Math.min(...p.sizes.map((s) => s.GiaTien))
                 : null;

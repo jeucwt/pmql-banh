@@ -28,6 +28,10 @@ const DashBoardItems = [
     {
         label: "Quan li nhap kho",
         href: "/dashboard/nhapkho",
+    },
+    {
+        label: "Đơn chờ sản xuất",
+        href: "/dashboard/don-cho-sx",
     }
 ];
 

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
+import { useCart } from "@/lib/CartContext";
 
 export default function Navbar() {
   const { user } = useAuth();
+  const { itemCount } = useCart();
   return (
     <nav
       style={{ backgroundColor: "#664930" }}
@@ -45,7 +47,7 @@ export default function Navbar() {
         {user ? (
           // Hiển thị Pill thông tin tài khoản khi đã đăng nhập
           <Link
-            href="/customer"
+            href={user.role === "admin" ? "/dashboard" : user.role === "cashier" ? "/cashier" : "/customer"}
             style={{ backgroundColor: "#997E67", color: "#FFDBBB" }}
             className="flex items-center gap-2 px-4 py-2 rounded-full font-medium hover:opacity-90 transition-opacity"
           >
@@ -63,7 +65,17 @@ export default function Navbar() {
             </Link>
           </>
         )}
-        <span style={{ color: "#FFDBBB" }} className="text-2xl cursor-pointer">🛒</span>
+        <Link href="/cart" className="relative text-2xl cursor-pointer" style={{ color: "#FFDBBB" }}>
+          🛒
+          {itemCount > 0 && (
+            <span
+              className="absolute -top-2 -right-2 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
+              style={{ backgroundColor: "#C0392B", color: "#fff" }}
+            >
+              {itemCount}
+            </span>
+          )}
+        </Link>
       </div>
 
     </nav>

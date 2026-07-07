@@ -24,12 +24,17 @@ interface DonHang {
     TrangThai: string;
     MaKH: number;
     MaDVVC: number | null;
+    TenDVVC?: string;
+    MaVanDon?: string;
 }
 
 const TRANG_THAI_LABEL: Record<string, { label: string; color: string }> = {
     ChoXacNhan: { label: "Chờ xác nhận", color: "#997E67" },
+    DangXuLy: { label: "Đang xử lý", color: "#E67E22" },
+    DangLam: { label: "Đang làm", color: "#F1C40F" },
     DangGiao: { label: "Đang giao", color: "#2980B9" },
     DaGiao: { label: "Đã giao", color: "#27AE60" },
+    HoanThanh: { label: "Hoàn thành", color: "#8E44AD" },
     DaHuy: { label: "Đã hủy", color: "#C0392B" },
 };
 
@@ -133,6 +138,11 @@ export default function OrderDetailPage({
                         <p className="text-sm mt-1" style={{ color: "#997E67" }}>
                             Ngày đặt: {ngayDat}
                         </p>
+                        {donHang.TenDVVC && (
+                            <p className="text-sm mt-1" style={{ color: "#997E67" }}>
+                                Đơn vị VC: {donHang.TenDVVC} {donHang.MaVanDon ? `(Mã: ${donHang.MaVanDon})` : ""}
+                            </p>
+                        )}
                     </div>
                     <span
                         className="text-sm px-4 py-1.5 rounded-full font-semibold"

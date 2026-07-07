@@ -6,7 +6,7 @@ import Link from "next/link";
 import Navbar from "../../navbar";
 import { Footer } from "../../footer/footer";
 import { getChiTietBanh, Banh } from "@/lib/api/banh";
-
+import { useCart } from "@/lib/CartContext";
 
 
 export default function ProductDetailPage({
@@ -22,7 +22,7 @@ export default function ProductDetailPage({
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [ordering, setOrdering] = useState(false);
   const router = useRouter();
-
+  const { addToCart } = useCart();
 
   useEffect(() => {
     getChiTietBanh(id)
@@ -60,6 +60,19 @@ export default function ProductDetailPage({
     );
   }
 
+  function handleAddToCart() {
+    if (!selectedSize) {
+      alert("Vui lòng chọn size trước khi thêm vào giỏ hàng");
+      return;
+    }
+    const size = product!.sizes.find((s) => s.MaSize === selectedSize)!;
+    addToCart(
+      { maBanh: product!.MaBanh, tenBanh: product!.TenBanh, maSize: size.MaSize, kichThuoc: size.KichThuoc, giaTien: size.GiaTien },
+      quantity
+    );
+    alert("Đã thêm vào giỏ hàng");
+  }
+
   const giaHienThi = product.sizes?.length > 0
     ? Math.min(...product.sizes.map((s) => s.GiaTien))
     : 0;
@@ -75,31 +88,17 @@ export default function ProductDetailPage({
       return;
     }
 
-    setOrdering(true);
-    try {
-      const res = await fetch("http://localhost:3001/api/donhang", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          items: [{ maBanh: product!.MaBanh, maSize: selectedSize, soLuong: quantity }],
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.message || "Đặt hàng thất bại");
-        return;
-      }
-
-      router.push("/customer/orders");
-    } catch {
-      alert("Lỗi kết nối server");
-    } finally {
-      setOrdering(false);
-    }
+    const size = product!.sizes.find((s) => s.MaSize === selectedSize)!;
+    sessionStorage.setItem("checkout_items", JSON.stringify([{
+      maBanh: product!.MaBanh,
+      tenBanh: product!.TenBanh,
+      maSize: size.MaSize,
+      kichThuoc: size.KichThuoc,
+      giaTien: size.GiaTien,
+      soLuong: quantity
+    }]));
+    sessionStorage.setItem("is_cart_checkout", "false");
+    router.push("/checkout");
   }
   return (
     <div style={{ backgroundColor: "#FFF8F0" }} className="min-h-screen">
@@ -225,6 +224,7 @@ export default function ProductDetailPage({
                 {ordering ? "Đang đặt..." : "🛒 Mua ngay"}
               </button>
               <button
+                onClick={handleAddToCart}
                 className="flex-1 py-3 rounded-xl font-semibold text-sm border-2 transition-opacity hover:opacity-85 active:scale-95"
                 style={{ borderColor: "#664930", color: "#664930", backgroundColor: "transparent" }}
               >

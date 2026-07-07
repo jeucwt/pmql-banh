@@ -17,6 +17,7 @@ app.use('/api/auth', require('./routes/auth.route'));
 app.use('/api/banh', require('./routes/banh.route'));
 app.use('/api/admin/banh', require('./routes/admin.banh.route'));
 app.use('/api/donhang', require('./routes/donhang.route'));
+app.use('/api/dvvc', require('./routes/dvvc.route'));
 app.use('/api/kh', require('./routes/kh.route'));
 app.use('/api/admin/sanxuat', require('./routes/sanxuat.route'));
 app.use('/api/admin/dashboard', require('./routes/admin.dashboard.route'));

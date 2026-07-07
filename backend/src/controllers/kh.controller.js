@@ -9,7 +9,7 @@ async function getProfile(req, res) {
             FROM TaiKhoan tk
             LEFT JOIN KhachHang kh ON tk.MaTK = kh.MaTK
             WHERE tk.MaTK = ?`,
-            [maTK]
+            [MaTK]
         );
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Không tìm thấy thông tin tài khoản.' });

@@ -58,4 +58,38 @@ async function topSanPham(req, res) {
     }
 }
 
-module.exports = { doanhThu, donHangTheoTrangThai, topSanPham };
+// GET /api/admin/dashboard/donhang-cho-sx
+async function donHangChoSanXuat(req, res) {
+    try {
+        const [rows] = await pool.query(
+            `SELECT dh.*, tk.HoTen AS TenKhachHang 
+             FROM DonHang dh 
+             LEFT JOIN TaiKhoan tk ON dh.MaKH = tk.MaTK 
+             WHERE dh.TrangThai = 'ChoXacNhan' 
+             ORDER BY dh.NgayDat ASC`
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi lấy đơn chờ sản xuất', error: err.message });
+    }
+}
+
+// POST /api/admin/dashboard/tao-lenh-sx
+async function taoLenhSanXuat(req, res) {
+    const { danhSachMaDH } = req.body;
+    if (!Array.isArray(danhSachMaDH) || danhSachMaDH.length === 0) {
+        return res.status(400).json({ message: 'Danh sách mã đơn hàng không hợp lệ' });
+    }
+    
+    try {
+        await pool.query(
+            `UPDATE DonHang SET TrangThai = 'DangLam' WHERE MaDH IN (?) AND TrangThai = 'ChoXacNhan'`,
+            [danhSachMaDH]
+        );
+        res.json({ message: 'Cập nhật trạng thái thành Đang làm thành công' });
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi cập nhật trạng thái đơn hàng', error: err.message });
+    }
+}
+
+module.exports = { doanhThu, donHangTheoTrangThai, topSanPham, donHangChoSanXuat, taoLenhSanXuat };

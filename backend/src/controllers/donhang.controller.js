@@ -47,7 +47,7 @@ async function taoDonHang(req, res) {
       chiTietItems.push({ maBanh, maSize, soLuong, donGia });
     }
 
-    const trangThai = tatCaDuHang ? 'HoanThanh' : 'ChoXacNhan';
+    const trangThai = tatCaDuHang ? 'DangXuLy' : 'ChoXacNhan';
 
     const [dhResult] = await conn.query(
       'INSERT INTO DonHang (MaKH, NgayDat, TongTien, TrangThai) VALUES (?, NOW(), ?, ?)',
@@ -109,10 +109,11 @@ async function layDonHangCuaToi(req, res) {
   try {
     const [rows] = await pool.query(
       `
-      SELECT *
-      FROM DonHang
-      WHERE MaKH = ?
-      ORDER BY NgayDat DESC
+      SELECT dh.*, dv.TenDVVC
+      FROM DonHang dh
+      LEFT JOIN DonViVanChuyen dv ON dh.MaDVVC = dv.MaDVVC
+      WHERE dh.MaKH = ?
+      ORDER BY dh.NgayDat DESC
       `,
       [maKH]
     );
@@ -133,9 +134,10 @@ async function layChiTietDonHang(req, res) {
   try {
     const [donHangRows] = await pool.query(
       `
-      SELECT *
-      FROM DonHang
-      WHERE MaDH = ? AND MaKH = ?
+      SELECT dh.*, dv.TenDVVC
+      FROM DonHang dh
+      LEFT JOIN DonViVanChuyen dv ON dh.MaDVVC = dv.MaDVVC
+      WHERE dh.MaDH = ? AND dh.MaKH = ?
       `,
       [id, maKH]
     );
@@ -167,4 +169,45 @@ async function layChiTietDonHang(req, res) {
   }
 }
 
-module.exports = { taoDonHang, layDonHangCuaToi, layChiTietDonHang };
+async function capNhatVanChuyen(req, res) {
+  const { id } = req.params;
+  const { maDVVC, maVanDon } = req.body;
+
+  if (!maDVVC || !maVanDon) {
+    return res.status(400).json({ message: 'Vui lòng cung cấp mã đơn vị vận chuyển và mã vận đơn' });
+  }
+
+  try {
+    const [result] = await pool.query(
+      `UPDATE DonHang 
+       SET MaDVVC = ?, MaVanDon = ?, TrangThai = 'DangGiao' 
+       WHERE MaDH = ?`,
+      [maDVVC, maVanDon, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+    }
+
+    res.json({ message: 'Cập nhật thông tin vận chuyển thành công' });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi cập nhật vận chuyển', error: err.message });
+  }
+}
+
+async function layDonHangDangXuLy(req, res) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT dh.*, u.HoTen as TenKhachHang 
+       FROM DonHang dh 
+       LEFT JOIN TaiKhoan u ON dh.MaKH = u.MaTK 
+       WHERE dh.TrangThai = 'DangXuLy' 
+       ORDER BY dh.NgayDat ASC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi khi lấy đơn hàng đang xử lý', error: err.message });
+  }
+}
+
+module.exports = { taoDonHang, layDonHangCuaToi, layChiTietDonHang, capNhatVanChuyen, layDonHangDangXuLy };
