@@ -4,8 +4,13 @@ require('dotenv').config();
 
 const app = express();
 
+const path = require('path');
+
 app.use(cors({ origin: 'http://localhost:3000' }));
 app.use(express.json());
+
+// Phục vụ các file tĩnh trong thư mục public
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Test route
 app.get('/', (req, res) => {
@@ -25,6 +30,7 @@ app.use('/api/hoadon', require('./routes/hoadon.route'));
 app.use('/api/admin/kho', require('./routes/kho.route'));
 app.use('/api/admin/phieunhap', require('./routes/phieunhap.route'));
 app.use('/api/admin/nhacc', require('./routes/nhacc.route'));
+app.use('/api/admin/congthuc', require('./routes/congthuc.route'));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

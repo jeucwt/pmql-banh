@@ -12,6 +12,7 @@ export interface Banh{
     MoTa: string;
     TenLoai: string;
     TrangThaiBanh: string;
+    SoLuong: number;
     sizes: Size[];
 }
 

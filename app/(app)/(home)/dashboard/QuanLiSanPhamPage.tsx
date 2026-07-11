@@ -16,7 +16,9 @@ interface BanhApi {
     MaLoai: number;
     TenLoai: string;
     TrangThaiBanh: string;
+    HinhAnh: string | null;
     NgaySanXuat: string | null;
+    congThucList: { maNL: number, dinhLuong: number }[];
     sizes: {
         MaSize: number;
         KichThuoc: string;
@@ -28,7 +30,7 @@ interface SanPham {
     id: number;
     ten: string;
     moTa: string;
-    congThuc: string;
+    
     soLuong: number;
     giaTu: number;
     ngaySanXuat: string | null,
@@ -37,6 +39,7 @@ interface SanPham {
     sizes: BanhApi["sizes"];
     // ảnh placeholder dùng màu nền
     mauNen: string;
+    hinhAnh: string | null;
 }
 
 function normalizeSizes(sizes: BanhApi["sizes"] | string | null): BanhApi["sizes"] {
@@ -59,7 +62,7 @@ function mapBanhApiToSanPham(banh: BanhApi): SanPham {
         id: banh.MaBanh,
         ten: banh.TenBanh,
         moTa: banh.MoTa || "",
-        congThuc: "",
+        
         soLuong: banh.SoLuong ?? 0,
         ngaySanXuat: banh.NgaySanXuat || null,
         giaTu: sizes.length > 0 ? Math.min(...sizes.map((size) => Number(size.GiaTien) || 0)) : 0,
@@ -67,22 +70,32 @@ function mapBanhApiToSanPham(banh: BanhApi): SanPham {
         trangThaiBanh: banh.TrangThaiBanh,
         sizes,
         mauNen: banh.TenLoai === "Bánh Kem" ? "#ffd6d6" : "#f5deb3",
+        hinhAnh: banh.HinhAnh || null,
     };
+}
+
+interface KhoApi {
+    MaNL: number;
+    TenNL: string;
+    DonViTinh: string;
 }
 
 interface FormData {
     ten: string;
     moTa: string;
-    congThuc: string;
+    
     soLuong?: number,
     ngaySanXuat?: string,
     kichThuoc?: string;
     giaTien?: number;
     trangThaiBanh: string;
+    congThucList: { maNL: number, dinhLuong: number }[];
     sizes: {
         kichThuoc: string;
         giaTien: number
     }[];
+    hinhAnhUrl?: string;
+    fileAnh?: File | null;
 }
 
 
@@ -91,6 +104,7 @@ const CATEGORIES: Category[] = ["Tất cả", "Bánh Mì", "Bánh Kem"];
 // ── Component ──────────────────────────────────────────────
 export default function QuanLiSanPhamPage() {
     const [danhSach, setDanhSach] = useState<SanPham[]>([]);
+    const [nguyenLieuList, setNguyenLieuList] = useState<KhoApi[]>([]);
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("")
@@ -101,11 +115,12 @@ export default function QuanLiSanPhamPage() {
     const [editForm, setEditForm] = useState<FormData>({
         ten: "",
         moTa: "",
-        congThuc: "",
+        
         kichThuoc: "M",
         giaTien: 0,
         trangThaiBanh: "dang_ban",
         sizes: [],
+        congThucList: [],
     });
 
     // Modal thêm mới
@@ -120,13 +135,15 @@ export default function QuanLiSanPhamPage() {
     >({
         ten: "",
         moTa: "",
-        congThuc: "",
+        
         trangThaiBanh: "dang_ban",
         category: "Bánh Mì",
         soLuong: 0,
         kichThuoc: "M",
         giaTien: 0,
         sizes: [],
+        congThucList: [],
+        fileAnh: null
     });
 
     function getToken() {
@@ -146,6 +163,14 @@ export default function QuanLiSanPhamPage() {
 
             if (!res.ok) {
                 throw new Error("Không thể tải danh sách bánh");
+            }
+
+            
+            const resKho = await fetch("http://localhost:3001/api/admin/kho", {
+                headers: { Authorization: `Bearer ${getToken()}` },
+            });
+            if (resKho.ok) {
+                setNguyenLieuList(await resKho.json());
             }
 
             const data: BanhApi[] = await res.json();
@@ -173,81 +198,146 @@ export default function QuanLiSanPhamPage() {
     }, [danhSach, category, search]);
 
     // ── Handlers ───────────────────────────────────────────
-    function openEdit(sp: SanPham) {
-        const firstSize = sp.sizes[0];
-        setEditTarget(sp);
-        setEditForm({
-            ten: sp.ten,
-            moTa: sp.moTa,
-            congThuc: sp.congThuc,
-            kichThuoc:
-                (firstSize && ((firstSize as any).KichThuoc ?? (firstSize as any).kichThuoc)) ||
-                "M",
-            giaTien: Number(
-                (firstSize && ((firstSize as any).GiaTien ?? (firstSize as any).giaTien)) ?? 0
-            ),
-            trangThaiBanh: sp.trangThaiBanh || "dang_ban",
-            sizes: (sp.sizes || []).map((s) => ({
-                kichThuoc: (s as any).KichThuoc ?? (s as any).kichThuoc ?? "",
-                giaTien: Number((s as any).GiaTien ?? (s as any).giaTien ?? 0),
-            })),
+    async function openEdit(sp: SanPham) {
+        setLoading(true);
+        try {
+            const res = await fetch(`http://localhost:3001/api/admin/congthuc/${sp.id}`, {
+                headers: { Authorization: `Bearer ${getToken()}` },
+            });
+            const congThucData = res.ok ? await res.json() : [];
+            const firstSize = sp.sizes[0];
+            setEditTarget(sp);
+            setEditForm({
+                ten: sp.ten,
+                moTa: sp.moTa,
+                kichThuoc:
+                    (firstSize && ((firstSize as any).KichThuoc ?? (firstSize as any).kichThuoc)) ||
+                    "M",
+                giaTien: Number(
+                    (firstSize && ((firstSize as any).GiaTien ?? (firstSize as any).giaTien)) ?? 0
+                ),
+                trangThaiBanh: sp.trangThaiBanh || "dang_ban",
+                sizes: (sp.sizes || []).map((s) => ({
+                    kichThuoc: (s as any).KichThuoc ?? (s as any).kichThuoc ?? "",
+                    giaTien: Number((s as any).GiaTien ?? (s as any).giaTien ?? 0),
+                })),
+                congThucList: congThucData.map((ct: any) => ({ maNL: ct.MaNL, dinhLuong: ct.DinhLuong })),
+                hinhAnhUrl: sp.hinhAnh || undefined,
+                fileAnh: null
+            });
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function uploadImage(file: File) {
+        const formData = new window.FormData();
+        formData.append("hinhAnh", file);
+        const res = await fetch("http://localhost:3001/api/admin/banh/upload", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${getToken()}`,
+            },
+            body: formData,
         });
+        if (!res.ok) throw new Error("Upload ảnh thất bại");
+        const data = await res.json();
+        return data.url;
     }
 
     async function saveEdit() {
         if (!editTarget) return;
-        const res = await fetch(`${API_BANH_ADMIN}/${editTarget.id}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${getToken()}`,
-            },
-            body: JSON.stringify({
-                tenBanh: editForm.ten,
-                moTa: editForm.moTa,
-                maLoai: editTarget.category === "Bánh Kem" ? 2 : 1,
-                trangThaiBanh: editForm.trangThaiBanh,
-                sizes: editForm.sizes.map((s) => ({
-                    kichThuoc: s.kichThuoc,
-                    giaTien: Number(s.giaTien),
-                })),
-            }),
-        });
+        try {
+            let hinhAnh = editForm.hinhAnhUrl;
+            if (editForm.fileAnh) {
+                hinhAnh = await uploadImage(editForm.fileAnh);
+            }
+
+            const res = await fetch(`${API_BANH_ADMIN}/${editTarget.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${getToken()}`,
+                },
+                body: JSON.stringify({
+                    tenBanh: editForm.ten,
+                    moTa: editForm.moTa,
+                    maLoai: editTarget.category === "Bánh Kem" ? 2 : 1,
+                    trangThaiBanh: editForm.trangThaiBanh,
+                    hinhAnh: hinhAnh,
+                    sizes: editForm.sizes.map((s) => ({
+                        kichThuoc: s.kichThuoc,
+                        giaTien: Number(s.giaTien),
+                    })),
+                }),
+            });
+        
+        if (res.ok) {
+            await fetch(`http://localhost:3001/api/admin/congthuc/${editTarget.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+                body: JSON.stringify({ nguyenLieu: editForm.congThucList })
+            });
+        }
+
         if (!res.ok) {
             setError("Không thể cập nhật bánh");
+            return;
             return;
         }
         setEditTarget(null);
         await fetchDanhSachBanh();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
+        }
     }
 
     async function saveAdd() {
-        const res = await fetch(API_BANH_ADMIN, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${getToken()}`,
-            },
-            body: JSON.stringify({
-                tenBanh: addForm.ten,
-                moTa: addForm.moTa,
-                maLoai: addForm.category === "Bánh Kem" ? 2 : 1,
-                trangThaiBanh: addForm.trangThaiBanh,
-                sizes: [
-                    {
-                        kichThuoc: addForm.kichThuoc,
-                        giaTien: Number(addForm.giaTien),
-                    },
-                ],
-            }),
-        });
-        if (!res.ok) {
-            setError("Không thể thêm bánh");
-            return;
+        try {
+            let hinhAnh = undefined;
+            if (addForm.fileAnh) {
+                hinhAnh = await uploadImage(addForm.fileAnh);
+            }
+
+            const res = await fetch(API_BANH_ADMIN, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${getToken()}`,
+                },
+                body: JSON.stringify({
+                    tenBanh: addForm.ten,
+                    moTa: addForm.moTa,
+                    maLoai: addForm.category === "Bánh Kem" ? 2 : 1,
+                    trangThaiBanh: addForm.trangThaiBanh,
+                    hinhAnh: hinhAnh,
+                    sizes: [
+                        {
+                            kichThuoc: addForm.kichThuoc,
+                            giaTien: Number(addForm.giaTien),
+                        },
+                    ],
+                }),
+            });
+            if (res.ok) {
+                const { maBanh } = await res.json();
+                await fetch(`http://localhost:3001/api/admin/congthuc/${maBanh}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+                    body: JSON.stringify({ nguyenLieu: addForm.congThucList })
+                });
+            } else {
+                setError("Không thể thêm bánh");
+                return;
+            }
+            setShowAdd(false);
+            setAddForm({ ten: "", moTa: "", kichThuoc: "M", giaTien: 0, category: "Bánh Mì", soLuong: 0, trangThaiBanh: "dang_ban", sizes: [], congThucList: [], fileAnh: null });
+            await fetchDanhSachBanh();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
         }
-        setShowAdd(false);
-        setAddForm({ ten: "", moTa: "", congThuc: "", kichThuoc: "M", giaTien: 0, category: "Bánh Mì", soLuong: 0, trangThaiBanh: "dang_ban", sizes: [] });
-        await fetchDanhSachBanh();
     }
 
     async function stopSelling(sp: SanPham) {
@@ -323,12 +413,20 @@ export default function QuanLiSanPhamPage() {
                                 className="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col"
                             >
                                 {/* Ảnh placeholder */}
-                                <div
-                                    className="h-36 flex items-center justify-center shrink-0"
-                                    style={{ backgroundColor: sp.mauNen }}
-                                >
-                                    <ChefHat className="w-10 h-10 text-white opacity-60" />
-                                </div>
+                                {sp.hinhAnh ? (
+                                    <img 
+                                        src={`http://localhost:3001${sp.hinhAnh}`} 
+                                        alt={sp.ten} 
+                                        className="h-36 w-full object-cover shrink-0"
+                                    />
+                                ) : (
+                                    <div
+                                        className="h-36 flex items-center justify-center shrink-0"
+                                        style={{ backgroundColor: sp.mauNen }}
+                                    >
+                                        <ChefHat className="w-10 h-10 text-white opacity-60" />
+                                    </div>
+                                )}
 
                                 {/* Info */}
                                 <div className="px-4 py-3 flex flex-col gap-1 flex-1">
@@ -342,6 +440,7 @@ export default function QuanLiSanPhamPage() {
                                         Giá từ:{" "}
                                         <span className="font-semibold text-[#c8860a]">{sp.giaTu.toLocaleString("vi-VN")}đ</span>
                                     </p>
+                                                                        <p className="text-xs text-[#8a6040]">                                        Tồn kho: <span className="font-semibold">{sp.soLuong}</span>                                    </p>
                                     <p className="text-[11px] text-[#8a6040]">
                                         Trạng thái:{" "}
                                         <span className="font-semibold">
@@ -397,6 +496,26 @@ export default function QuanLiSanPhamPage() {
 
                         {/* Form */}
                         <div className="px-6 py-5 flex flex-col gap-4">
+                            <Field label="Hình ảnh">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) setEditForm({ ...editForm, fileAnh: file });
+                                    }}
+                                    className={inputCls + " file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#f0e6d0] file:text-[#8a6040] hover:file:bg-[#e8d5b0]"}
+                                />
+                                {(editForm.fileAnh || editForm.hinhAnhUrl) && (
+                                    <div className="mt-2 h-20 w-20 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
+                                        <img 
+                                            src={editForm.fileAnh ? URL.createObjectURL(editForm.fileAnh) : `http://localhost:3001${editForm.hinhAnhUrl}`} 
+                                            alt="Preview" 
+                                            className="h-full w-full object-cover"
+                                        />
+                                    </div>
+                                )}
+                            </Field>
                             <Field label="Tên bánh">
                                 <input
                                     value={editForm.ten}
@@ -422,14 +541,58 @@ export default function QuanLiSanPhamPage() {
                                     <option value="ngung_ban">Ngừng bán</option>
                                 </select>
                             </Field>
+                            
+                            
                             <Field label="Công thức">
-                                <textarea
-                                    rows={4}
-                                    value={editForm.congThuc}
-                                    onChange={(e) => setEditForm({ ...editForm, congThuc: e.target.value })}
-                                    className={inputCls + " resize-none"}
-                                />
+                                {editForm.congThucList.map((ct, i) => (
+                                    <div key={i} className="flex gap-2 items-center">
+                                        <select
+                                            value={ct.maNL}
+                                            onChange={(e) => {
+                                                const next = [...editForm.congThucList];
+                                                next[i].maNL = Number(e.target.value);
+                                                setEditForm({ ...editForm, congThucList: next });
+                                            }}
+                                            className={inputCls + " flex-1"}
+                                        >
+                                            <option value={0} disabled>Chọn nguyên liệu</option>
+                                            {nguyenLieuList.map((nl) => (
+                                                <option key={nl.MaNL} value={nl.MaNL}>{nl.TenNL} ({nl.DonViTinh})</option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="number"
+                                            value={ct.dinhLuong}
+                                            onChange={(e) => {
+                                                const next = [...editForm.congThucList];
+                                                next[i].dinhLuong = Number(e.target.value);
+                                                setEditForm({ ...editForm, congThucList: next });
+                                            }}
+                                            placeholder="Định lượng"
+                                            className={inputCls + " w-24"}
+                                        />
+                                        <button
+                                            onClick={() => setEditForm({
+                                                ...editForm,
+                                                congThucList: editForm.congThucList.filter((_, j) => j !== i)
+                                            })}
+                                            className="text-red-400 hover:text-red-600"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => setEditForm({
+                                        ...editForm,
+                                        congThucList: [...editForm.congThucList, { maNL: 0, dinhLuong: 0 }]
+                                    })}
+                                    className="text-xs text-[#c8860a] hover:underline mt-1"
+                                >
+                                    + Thêm nguyên liệu
+                                </button>
                             </Field>
+
                             <Field label="Kích thước & Giá">
                                 {editForm.sizes.map((s, i) => (
                                     <div key={i} className="flex gap-2 items-center">
@@ -521,6 +684,26 @@ export default function QuanLiSanPhamPage() {
 
                         {/* Form */}
                         <div className="px-6 py-5 flex flex-col gap-4">
+                            <Field label="Hình ảnh">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) setAddForm({ ...addForm, fileAnh: file });
+                                    }}
+                                    className={inputCls + " file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#f0e6d0] file:text-[#8a6040] hover:file:bg-[#e8d5b0]"}
+                                />
+                                {addForm.fileAnh && (
+                                    <div className="mt-2 h-20 w-20 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
+                                        <img 
+                                            src={URL.createObjectURL(addForm.fileAnh)} 
+                                            alt="Preview" 
+                                            className="h-full w-full object-cover"
+                                        />
+                                    </div>
+                                )}
+                            </Field>
                             <Field label="Tên bánh *">
                                 <input
                                     value={addForm.ten}
@@ -557,14 +740,58 @@ export default function QuanLiSanPhamPage() {
                                     className={inputCls + " resize-none"}
                                 />
                             </Field>
+                            
+                            
                             <Field label="Công thức">
-                                <textarea
-                                    rows={3}
-                                    value={addForm.congThuc}
-                                    onChange={(e) => setAddForm({ ...addForm, congThuc: e.target.value })}
-                                    className={inputCls + " resize-none"}
-                                />
+                                {addForm.congThucList.map((ct, i) => (
+                                    <div key={i} className="flex gap-2 items-center">
+                                        <select
+                                            value={ct.maNL}
+                                            onChange={(e) => {
+                                                const next = [...addForm.congThucList];
+                                                next[i].maNL = Number(e.target.value);
+                                                setAddForm({ ...addForm, congThucList: next });
+                                            }}
+                                            className={inputCls + " flex-1"}
+                                        >
+                                            <option value={0} disabled>Chọn nguyên liệu</option>
+                                            {nguyenLieuList.map((nl) => (
+                                                <option key={nl.MaNL} value={nl.MaNL}>{nl.TenNL} ({nl.DonViTinh})</option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="number"
+                                            value={ct.dinhLuong}
+                                            onChange={(e) => {
+                                                const next = [...addForm.congThucList];
+                                                next[i].dinhLuong = Number(e.target.value);
+                                                setAddForm({ ...addForm, congThucList: next });
+                                            }}
+                                            placeholder="Định lượng"
+                                            className={inputCls + " w-24"}
+                                        />
+                                        <button
+                                            onClick={() => setAddForm({
+                                                ...addForm,
+                                                congThucList: addForm.congThucList.filter((_, j) => j !== i)
+                                            })}
+                                            className="text-red-400 hover:text-red-600"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => setAddForm({
+                                        ...addForm,
+                                        congThucList: [...addForm.congThucList, { maNL: 0, dinhLuong: 0 }]
+                                    })}
+                                    className="text-xs text-[#c8860a] hover:underline mt-1"
+                                >
+                                    + Thêm nguyên liệu
+                                </button>
                             </Field>
+
                             <Field label="Kích thước *">
                                 <input
                                     value={addForm.kichThuoc}

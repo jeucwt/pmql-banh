@@ -30,6 +30,7 @@ interface ChiTietApi {
     SoLuong: number;
     SoLuongHoanThanh: number;
     TenBanh: string;
+    KichThuoc?: string;
 }
 
 interface PhieuChiTietApi extends Omit<PhieuApi, "SoDongChiTiet"> {
@@ -39,6 +40,7 @@ interface PhieuChiTietApi extends Omit<PhieuApi, "SoDongChiTiet"> {
 interface BanhOption {
     MaBanh: number;
     TenBanh: string;
+    KichThuoc?: string;
 }
 
 interface NguyenLieuThieu {
@@ -70,7 +72,7 @@ export default function SanXuatPage() {
 
     const [showAdd, setShowAdd] = useState(false);
     const [banhOptions, setBanhOptions] = useState<BanhOption[]>([]);
-    const [addItems, setAddItems] = useState<{ maBanh: number; soLuong: number }[]>([]);
+    const [addItems, setAddItems] = useState<{ maBanh: number; soLuong: number; maSize?: number }[]>([]);
     const [saving, setSaving] = useState(false);
 
     function getToken() {
@@ -97,6 +99,46 @@ export default function SanXuatPage() {
     useEffect(() => {
         void fetchPhieus();
     }, []);
+
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    
+    async function fetchSuggestions() {
+        try {
+            const res = await fetch(`${API_SANXUAT}/goi-y`, { headers: authHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                setSuggestions(data);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    useEffect(() => {
+        void fetchSuggestions();
+    }, []);
+
+
+
+    async function loadBanhOptions() {
+        if (banhOptions.length > 0) return true;
+        try {
+            const res = await fetch("http://localhost:3001/api/admin/banh", { headers: authHeaders() });
+            if (res.ok) {
+                const data = await res.json();
+                const parseSizes = (s: any) => {
+                    if (Array.isArray(s)) return s;
+                    if (typeof s === "string") {
+                        try { return JSON.parse(s); } catch { return []; }
+                    }
+                    return [];
+                };
+                setBanhOptions(data.map((b: any) => ({ MaBanh: b.MaBanh, TenBanh: b.TenBanh, sizes: parseSizes(b.sizes) })));
+                return true;
+            }
+        } catch {}
+        return false;
+    }
 
     // ── Detail modal ──
     async function openDetail(maPSX: number) {
@@ -138,27 +180,29 @@ export default function SanXuatPage() {
 
     // ── Add modal ──
     async function openAdd() {
-        setAddItems([{ maBanh: 0, soLuong: 1 }]);
+        setAddItems([{ maBanh: 0, soLuong: 1, maSize: 0 }]);
         setShowAdd(true);
-        if (banhOptions.length === 0) {
-            try {
-                const res = await fetch(API_BANH);
-                if (res.ok) {
-                    const data = await res.json();
-                    setBanhOptions(data.map((b: any) => ({ MaBanh: b.MaBanh, TenBanh: b.TenBanh })));
-                }
-            } catch {
-                // im lặng — modal vẫn dùng được, chỉ là select trống
-            }
-        }
+        await loadBanhOptions();
+    }
+    
+    async function openAddWithSuggestions() {
+        setShowAdd(true);
+        await loadBanhOptions();
+        const items = suggestions.map(s => ({
+            maBanh: s.maBanh,
+            maSize: s.maSize || 0,
+            soLuong: s.soLuong
+        }));
+        setAddItems(items);
     }
 
-    function updateItem(idx: number, patch: Partial<{ maBanh: number; soLuong: number }>) {
+
+    function updateItem(idx: number, patch: Partial<{ maBanh: number; soLuong: number; maSize: number }>) {
         setAddItems((items) => items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
     }
 
     async function saveAdd() {
-        const valid = addItems.filter((it) => it.maBanh > 0 && it.soLuong > 0);
+        const valid = addItems.filter((it) => it.maBanh > 0 && it.soLuong > 0 && it.maSize && it.maSize > 0);
         if (valid.length === 0) return;
         setSaving(true);
         try {
@@ -167,7 +211,7 @@ export default function SanXuatPage() {
                 headers: { "Content-Type": "application/json", ...authHeaders() },
                 body: JSON.stringify({
                     maNV: 1,
-                    danhSachBanh: valid.map((it) => ({ maBanh: it.maBanh, soLuong: it.soLuong })),
+                    danhSachBanh: valid.map((it) => ({ maBanh: it.maBanh, soLuong: it.soLuong, maSize: it.maSize })),
                 }),
             });
             if (!res.ok) throw new Error("Không thể tạo phiếu sản xuất");
@@ -195,6 +239,22 @@ export default function SanXuatPage() {
             {error && (
                 <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-2.5">
                     {error}
+                </div>
+            )}
+
+            
+            {suggestions.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-orange-700 text-sm">
+                        <AlertTriangle size={16} />
+                        <span><strong>Gợi ý:</strong> Có {suggestions.length} mặt hàng đang thiếu cho các đơn hàng chờ xử lý.</span>
+                    </div>
+                    <button
+                        onClick={openAddWithSuggestions}
+                        className="px-3 py-1.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-lg hover:bg-orange-200 transition-colors"
+                    >
+                        Điền tự động vào phiếu mới
+                    </button>
                 </div>
             )}
 
@@ -314,7 +374,7 @@ export default function SanXuatPage() {
                                         <p className="text-xs font-semibold text-[#8a6040]">Danh sách sản phẩm</p>
                                         {detail.ChiTiet.map((ct, i) => (
                                             <div key={i} className="flex items-center justify-between px-3 py-2 bg-[#fdf6e3] rounded-xl text-sm">
-                                                <span className="text-[#3d1f0a] font-medium">{ct.TenBanh}</span>
+                                                <span className="text-[#3d1f0a] font-medium">{ct.TenBanh} {ct.KichThuoc ? `(Size ${ct.KichThuoc})` : ""}</span>
                                                 <span className="text-[#8a6040] text-xs">
                                                     {ct.SoLuongHoanThanh}/{ct.SoLuong}
                                                 </span>
@@ -389,12 +449,22 @@ export default function SanXuatPage() {
                                 <div key={idx} className="flex gap-2 items-center">
                                     <select
                                         value={item.maBanh}
-                                        onChange={(e) => updateItem(idx, { maBanh: Number(e.target.value) })}
+                                        onChange={(e) => updateItem(idx, { maBanh: Number(e.target.value), maSize: 0 })}
                                         className="flex-1 px-3 py-2 text-sm border border-[#e8d5b0] rounded-xl bg-[#fdf6e3] focus:outline-none focus:ring-1 focus:ring-[#c8860a] text-[#3d1f0a]"
                                     >
                                         <option value={0}>Chọn bánh...</option>
                                         {banhOptions.map((b) => (
                                             <option key={b.MaBanh} value={b.MaBanh}>{b.TenBanh}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={item.maSize || 0}
+                                        onChange={(e) => updateItem(idx, { maSize: Number(e.target.value) })}
+                                        className="w-28 px-3 py-2 text-sm border border-[#e8d5b0] rounded-xl bg-[#fdf6e3] focus:outline-none focus:ring-1 focus:ring-[#c8860a] text-[#3d1f0a]"
+                                    >
+                                        <option value={0}>Size...</option>
+                                        {banhOptions.find(b => b.MaBanh === item.maBanh)?.sizes?.map((s) => (
+                                            <option key={s.MaSize} value={s.MaSize}>{s.KichThuoc}</option>
                                         ))}
                                     </select>
                                     <input
@@ -414,7 +484,7 @@ export default function SanXuatPage() {
                                 </div>
                             ))}
                             <button
-                                onClick={() => setAddItems((items) => [...items, { maBanh: 0, soLuong: 1 }])}
+                                onClick={() => setAddItems((items) => [...items, { maBanh: 0, soLuong: 1, maSize: 0 }])}
                                 className="text-xs text-[#c8860a] hover:underline self-start"
                             >
                                 + Thêm sản phẩm
@@ -430,7 +500,7 @@ export default function SanXuatPage() {
                             </button>
                             <button
                                 onClick={saveAdd}
-                                disabled={saving || addItems.every((it) => it.maBanh === 0)}
+                                disabled={saving || addItems.some((it) => it.maBanh === 0 || !it.maSize)}
                                 className="px-4 py-2 text-sm rounded-xl bg-[#c8860a] text-white font-medium hover:bg-[#b5780a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {saving && <Loader2 size={14} className="animate-spin" />}

@@ -161,6 +161,12 @@ export default function ProductDetailPage({
               >
                 {product.TenLoai}
               </span>
+              <span
+                className="inline-block text-xs px-3 py-0.5 rounded-full mb-4 ml-2"
+                style={{ backgroundColor: product.SoLuong > 0 ? "#e6f4ea" : "#fce8e6", color: product.SoLuong > 0 ? "#137333" : "#c5221f" }}
+              >
+                {product.SoLuong > 0 ? `Còn hàng (${product.SoLuong})` : "Hết hàng"}
+              </span>
 
               {/* Size + Price */}
               <div className="mb-4">

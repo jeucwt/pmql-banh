@@ -108,15 +108,15 @@ async function layChiTietBanh(req, res) {
 
 // POST /api/adim/banh
 async function themBanh(req, res) {
-    const { tenBanh, moTa, maLoai, trangThaiBanh, sizes } = req.body;
+    const { tenBanh, moTa, maLoai, trangThaiBanh, sizes, hinhAnh } = req.body;
     // sizes: [{ kichThuoc, giaTien }]
 
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
         const [r] = await conn.query(
-            'INSERT INTO Banh (TenBanh, MoTa, MaLoai, TrangThaiBanh) VALUES (?, ?, ?, ?)',
-            [tenBanh, moTa, maLoai, trangThaiBanh]
+            'INSERT INTO Banh (TenBanh, MoTa, MaLoai, TrangThaiBanh, HinhAnh) VALUES (?, ?, ?, ?, ?)',
+            [tenBanh, moTa, maLoai, trangThaiBanh, hinhAnh]
         );
         const maBanh = r.insertId;
         if (sizes?.length) {
@@ -146,7 +146,7 @@ async function themBanh(req, res) {
 // PUT /api/admin/banh/:id
 async function capNhatBanh(req, res) {
     const { id } = req.params;
-    const { tenBanh, moTa, maLoai, trangThaiBanh, sizes } = req.body;
+    const { tenBanh, moTa, maLoai, trangThaiBanh, sizes, hinhAnh } = req.body;
     const conn = await pool.getConnection();
 
     try{
@@ -155,10 +155,10 @@ async function capNhatBanh(req, res) {
         const [r] = await conn.query(
             `
             UPDATE Banh
-            SET TenBanh = ?, MoTa = ?, MaLoai = ?, TrangThaiBanh = ? 
+            SET TenBanh = ?, MoTa = ?, MaLoai = ?, TrangThaiBanh = ?, HinhAnh = ? 
             Where MaBanh = ?
             `,
-            [tenBanh, moTa, maLoai, trangThaiBanh, id]
+            [tenBanh, moTa, maLoai, trangThaiBanh, hinhAnh, id]
         );
         if (r.affectedRows === 0) {
             await conn.rollback();
@@ -227,4 +227,15 @@ async function xoaBanh(req, res) {
   }
 }
 
-module.exports = { layDanhSachBanhDangBan, layChiTietBanhDangBan, layDanhSachBanh, layChiTietBanh, themBanh, capNhatBanh, xoaBanh, };
+async function uploadAnhBanh(req, res) {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'Không có file được tải lên' });
+        }
+        res.json({ url: `/uploads/${req.file.filename}` });
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi khi tải ảnh lên', error: err.message });
+    }
+}
+
+module.exports = { layDanhSachBanhDangBan, layChiTietBanhDangBan, layDanhSachBanh, layChiTietBanh, themBanh, capNhatBanh, xoaBanh, uploadAnhBanh };

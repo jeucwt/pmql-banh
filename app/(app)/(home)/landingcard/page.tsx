@@ -29,7 +29,7 @@ const ROLE_LABELS: Record<string, string> = {
     cashier: "Thu ngan",
 };
 
-export function LandingCard() {
+export default function LandingCard() {
     const {user, canAccess} = useAuth();
     const router = useRouter();
     const [toast, setToast] = useState("");
