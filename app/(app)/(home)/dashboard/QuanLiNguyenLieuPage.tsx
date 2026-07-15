@@ -138,7 +138,7 @@ export default function QuanLiNguyenLieuPage() {
   }, [ingredients, search, sortKey, sortAsc]);
 
   const lowStockCount = useMemo(
-    () => ingredients.filter((i) => i.canhBao).length,
+    () => ingredients.filter((i) => i.soLuongTon === 0 || i.soLuongTon < i.soLuongToiThieu).length,
     [ingredients]
   );
 

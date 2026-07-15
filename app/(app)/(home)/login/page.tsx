@@ -28,10 +28,7 @@ export default function LoginPage() {
       {/* Navbar */}
       <div className=" flex justify-start w-full py-4 px-6">
         <div className=" gap-4 flex items-center">
-          <a href="/" className=" rounded-md px-4 py-2 cursor-pointer">
-            🍰 Tiệm Bánh
-          </a>
-          <div className=" rounded-md px-4 py-2 ">Jeucwt's Bakery</div>
+          <a href="/" className="rounded-md px-4 py-2 cursor-pointer" style={{ fontSize: 20, color: "#5C2D0A", fontWeight: 700, textDecoration: "none" }}>Jeucwt's Bakery</a>
         </div>
         <a href="/signup" className="ml-auto" style={{ fontSize: 20, color: "#5C2D0A", fontWeight: 700, textDecoration: "none" }}>
           Đăng kí →

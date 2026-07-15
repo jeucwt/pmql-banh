@@ -200,7 +200,7 @@ async function layDonHangDangXuLy(req, res) {
     const [rows] = await pool.query(
       `SELECT dh.*, u.HoTen as TenKhachHang 
        FROM DonHang dh 
-       LEFT JOIN TaiKhoan u ON dh.MaKH = u.MaTK 
+       LEFT JOIN KhachHang u ON dh.MaKH = u.MaTK 
        WHERE dh.TrangThai = 'DangXuLy' 
        ORDER BY dh.NgayDat ASC`
     );

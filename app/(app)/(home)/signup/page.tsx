@@ -7,12 +7,12 @@ import { useRouter } from "next/navigation";
 export default function SignUpPage() {
   const { signup } = useAuth();
   const router = useRouter();
-  const [name, setName]             = useState("");
-  const [email, setEmail]           = useState("");
-  const [password, setPassword]     = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError]           = useState("");
-  const [loading, setLoading]       = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,10 +33,7 @@ export default function SignUpPage() {
       {/* Navbar */}
       <div className="flex justify-start w-full py-4 px-6">
         <div className="gap-4 flex items-center">
-          <a href="/" className="rounded-md px-4 py-2 cursor-pointer">
-            🍰 Tiệm Bánh
-          </a>
-          <div className="rounded-md px-4 py-2">Jeucwt's Bakery</div>
+          <a href="/" className="cursor-pointer" style={{ fontSize: 20, color: "#5C2D0A", fontWeight: 700, textDecoration: "none" }}>Jeucwt's Bakery</a>
         </div>
         <a
           href="/login"

@@ -6,7 +6,10 @@ import { SearchIcon, Plus, X, ChefHat, Package } from "lucide-react";
 const API_BANH_ADMIN = "http://localhost:3001/api/admin/banh";
 
 // ── Types ──────────────────────────────────────────────────
-type Category = "Tất cả" | "Bánh Mì" | "Bánh Kem";
+interface LoaiBanhApi {
+    MaLoai: number;
+    TenLoai: string;
+}
 
 interface BanhApi {
     MaBanh: number;
@@ -30,11 +33,12 @@ interface SanPham {
     id: number;
     ten: string;
     moTa: string;
-    
+
     soLuong: number;
     giaTu: number;
     ngaySanXuat: string | null,
-    category: Exclude<Category, "Tất cả">;
+    category: string;
+    maLoai: number;
     trangThaiBanh: string;
     sizes: BanhApi["sizes"];
     // ảnh placeholder dùng màu nền
@@ -62,11 +66,12 @@ function mapBanhApiToSanPham(banh: BanhApi): SanPham {
         id: banh.MaBanh,
         ten: banh.TenBanh,
         moTa: banh.MoTa || "",
-        
+
         soLuong: banh.SoLuong ?? 0,
         ngaySanXuat: banh.NgaySanXuat || null,
         giaTu: sizes.length > 0 ? Math.min(...sizes.map((size) => Number(size.GiaTien) || 0)) : 0,
-        category: banh.TenLoai === "Bánh Kem" ? "Bánh Kem" : "Bánh Mì",
+        category: banh.TenLoai || "Khác",
+        maLoai: banh.MaLoai,
         trangThaiBanh: banh.TrangThaiBanh,
         sizes,
         mauNen: banh.TenLoai === "Bánh Kem" ? "#ffd6d6" : "#f5deb3",
@@ -83,7 +88,7 @@ interface KhoApi {
 interface FormData {
     ten: string;
     moTa: string;
-    
+
     soLuong?: number,
     ngaySanXuat?: string,
     kichThuoc?: string;
@@ -99,23 +104,23 @@ interface FormData {
 }
 
 
-const CATEGORIES: Category[] = ["Tất cả", "Bánh Mì", "Bánh Kem"];
-
 // ── Component ──────────────────────────────────────────────
 export default function QuanLiSanPhamPage() {
     const [danhSach, setDanhSach] = useState<SanPham[]>([]);
     const [nguyenLieuList, setNguyenLieuList] = useState<KhoApi[]>([]);
+    const [loaiBanhList, setLoaiBanhList] = useState<LoaiBanhApi[]>([]);
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("")
-    const [category, setCategory] = useState<Category>("Tất cả");
+    const [category, setCategory] = useState<string>("Tất cả");
 
     // Modal cập nhật
     const [editTarget, setEditTarget] = useState<SanPham | null>(null);
-    const [editForm, setEditForm] = useState<FormData>({
+    const [editForm, setEditForm] = useState<FormData & { maLoai: number }>({
         ten: "",
         moTa: "",
-        
+        maLoai: 0,
+
         kichThuoc: "M",
         giaTien: 0,
         trangThaiBanh: "dang_ban",
@@ -127,7 +132,7 @@ export default function QuanLiSanPhamPage() {
     const [showAdd, setShowAdd] = useState(false);
     const [addForm, setAddForm] = useState<
         FormData & {
-            category: Exclude<Category, "Tất cả">;
+            maLoai: number;
             soLuong: number;
             kichThuoc: string;
             giaTien: number;
@@ -135,9 +140,9 @@ export default function QuanLiSanPhamPage() {
     >({
         ten: "",
         moTa: "",
-        
+
         trangThaiBanh: "dang_ban",
-        category: "Bánh Mì",
+        maLoai: 0,
         soLuong: 0,
         kichThuoc: "M",
         giaTien: 0,
@@ -165,12 +170,20 @@ export default function QuanLiSanPhamPage() {
                 throw new Error("Không thể tải danh sách bánh");
             }
 
-            
+
             const resKho = await fetch("http://localhost:3001/api/admin/kho", {
                 headers: { Authorization: `Bearer ${getToken()}` },
             });
             if (resKho.ok) {
                 setNguyenLieuList(await resKho.json());
+            }
+
+            const resLoaiBanh = await fetch("http://localhost:3001/api/loaibanh", {
+                headers: { Authorization: `Bearer ${getToken()}` },
+            });
+            if (resLoaiBanh.ok) {
+                const loaiData = await resLoaiBanh.json();
+                setLoaiBanhList(loaiData);
             }
 
             const data: BanhApi[] = await res.json();
@@ -210,6 +223,7 @@ export default function QuanLiSanPhamPage() {
             setEditForm({
                 ten: sp.ten,
                 moTa: sp.moTa,
+                maLoai: sp.maLoai,
                 kichThuoc:
                     (firstSize && ((firstSize as any).KichThuoc ?? (firstSize as any).kichThuoc)) ||
                     "M",
@@ -225,6 +239,8 @@ export default function QuanLiSanPhamPage() {
                 hinhAnhUrl: sp.hinhAnh || undefined,
                 fileAnh: null
             });
+            // We'll map maLoai separately since editForm currently doesn't store maLoai.
+            // Oh wait, editTarget has maLoai! So we can use editTarget.maLoai when saving.
         } catch (e) {
             console.error(e);
         } finally {
@@ -264,7 +280,7 @@ export default function QuanLiSanPhamPage() {
                 body: JSON.stringify({
                     tenBanh: editForm.ten,
                     moTa: editForm.moTa,
-                    maLoai: editTarget.category === "Bánh Kem" ? 2 : 1,
+                    maLoai: editForm.maLoai,
                     trangThaiBanh: editForm.trangThaiBanh,
                     hinhAnh: hinhAnh,
                     sizes: editForm.sizes.map((s) => ({
@@ -273,22 +289,22 @@ export default function QuanLiSanPhamPage() {
                     })),
                 }),
             });
-        
-        if (res.ok) {
-            await fetch(`http://localhost:3001/api/admin/congthuc/${editTarget.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-                body: JSON.stringify({ nguyenLieu: editForm.congThucList })
-            });
-        }
 
-        if (!res.ok) {
-            setError("Không thể cập nhật bánh");
-            return;
-            return;
-        }
-        setEditTarget(null);
-        await fetchDanhSachBanh();
+            if (res.ok) {
+                await fetch(`http://localhost:3001/api/admin/congthuc/${editTarget.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+                    body: JSON.stringify({ nguyenLieu: editForm.congThucList })
+                });
+            }
+
+            if (!res.ok) {
+                setError("Không thể cập nhật bánh");
+                return;
+                return;
+            }
+            setEditTarget(null);
+            await fetchDanhSachBanh();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
         }
@@ -310,7 +326,7 @@ export default function QuanLiSanPhamPage() {
                 body: JSON.stringify({
                     tenBanh: addForm.ten,
                     moTa: addForm.moTa,
-                    maLoai: addForm.category === "Bánh Kem" ? 2 : 1,
+                    maLoai: addForm.maLoai || (loaiBanhList.length > 0 ? loaiBanhList[0].MaLoai : 1),
                     trangThaiBanh: addForm.trangThaiBanh,
                     hinhAnh: hinhAnh,
                     sizes: [
@@ -333,7 +349,7 @@ export default function QuanLiSanPhamPage() {
                 return;
             }
             setShowAdd(false);
-            setAddForm({ ten: "", moTa: "", kichThuoc: "M", giaTien: 0, category: "Bánh Mì", soLuong: 0, trangThaiBanh: "dang_ban", sizes: [], congThucList: [], fileAnh: null });
+            setAddForm({ ten: "", moTa: "", kichThuoc: "M", giaTien: 0, maLoai: 0, soLuong: 0, trangThaiBanh: "dang_ban", sizes: [], congThucList: [], fileAnh: null });
             await fetchDanhSachBanh();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
@@ -382,17 +398,26 @@ export default function QuanLiSanPhamPage() {
                 </div>
 
                 {/* Categories */}
-                <div className="flex gap-2">
-                    {CATEGORIES.map((cat) => (
+                <div className="flex gap-2 flex-wrap">
+                    <button
+                        onClick={() => setCategory("Tất cả")}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${category === "Tất cả"
+                            ? "bg-[#c8860a] text-white"
+                            : "bg-[#f0e6d0] text-[#8a6040] hover:bg-[#e8d5b0]"
+                            }`}
+                    >
+                        Tất cả
+                    </button>
+                    {loaiBanhList.map((cat) => (
                         <button
-                            key={cat}
-                            onClick={() => setCategory(cat)}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${category === cat
+                            key={cat.MaLoai}
+                            onClick={() => setCategory(cat.TenLoai)}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${category === cat.TenLoai
                                 ? "bg-[#c8860a] text-white"
                                 : "bg-[#f0e6d0] text-[#8a6040] hover:bg-[#e8d5b0]"
                                 }`}
                         >
-                            {cat}
+                            {cat.TenLoai}
                         </button>
                     ))}
                 </div>
@@ -414,9 +439,9 @@ export default function QuanLiSanPhamPage() {
                             >
                                 {/* Ảnh placeholder */}
                                 {sp.hinhAnh ? (
-                                    <img 
-                                        src={`http://localhost:3001${sp.hinhAnh}`} 
-                                        alt={sp.ten} 
+                                    <img
+                                        src={`http://localhost:3001${sp.hinhAnh}`}
+                                        alt={sp.ten}
                                         className="h-36 w-full object-cover shrink-0"
                                     />
                                 ) : (
@@ -440,7 +465,7 @@ export default function QuanLiSanPhamPage() {
                                         Giá từ:{" "}
                                         <span className="font-semibold text-[#c8860a]">{sp.giaTu.toLocaleString("vi-VN")}đ</span>
                                     </p>
-                                                                        <p className="text-xs text-[#8a6040]">                                        Tồn kho: <span className="font-semibold">{sp.soLuong}</span>                                    </p>
+                                    <p className="text-xs text-[#8a6040]">                                        Tồn kho: <span className="font-semibold">{sp.soLuong}</span>                                    </p>
                                     <p className="text-[11px] text-[#8a6040]">
                                         Trạng thái:{" "}
                                         <span className="font-semibold">
@@ -485,7 +510,7 @@ export default function QuanLiSanPhamPage() {
             {/* ── Modal Cập nhật ── */}
             {editTarget && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[90vh]">
                         {/* Header */}
                         <div className="flex items-center justify-between px-6 py-4 bg-[#fdf6e3] border-b border-[#e8d5b0]">
                             <h3 className="font-bold text-[#3d1f0a]">Cập nhật sản phẩm</h3>
@@ -495,7 +520,7 @@ export default function QuanLiSanPhamPage() {
                         </div>
 
                         {/* Form */}
-                        <div className="px-6 py-5 flex flex-col gap-4">
+                        <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto flex-1">
                             <Field label="Hình ảnh">
                                 <input
                                     type="file"
@@ -508,9 +533,9 @@ export default function QuanLiSanPhamPage() {
                                 />
                                 {(editForm.fileAnh || editForm.hinhAnhUrl) && (
                                     <div className="mt-2 h-20 w-20 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
-                                        <img 
-                                            src={editForm.fileAnh ? URL.createObjectURL(editForm.fileAnh) : `http://localhost:3001${editForm.hinhAnhUrl}`} 
-                                            alt="Preview" 
+                                        <img
+                                            src={editForm.fileAnh ? URL.createObjectURL(editForm.fileAnh) : `http://localhost:3001${editForm.hinhAnhUrl}`}
+                                            alt="Preview"
                                             className="h-full w-full object-cover"
                                         />
                                     </div>
@@ -531,6 +556,17 @@ export default function QuanLiSanPhamPage() {
                                     className={inputCls + " resize-none"}
                                 />
                             </Field>
+                            <Field label="Loại bánh">
+                                <select
+                                    value={editForm.maLoai}
+                                    onChange={(e) => setEditForm({ ...editForm, maLoai: Number(e.target.value) })}
+                                    className={inputCls}
+                                >
+                                    {loaiBanhList.map(loai => (
+                                        <option key={loai.MaLoai} value={loai.MaLoai}>{loai.TenLoai}</option>
+                                    ))}
+                                </select>
+                            </Field>
                             <Field label="Trạng thái">
                                 <select
                                     value={editForm.trangThaiBanh}
@@ -541,8 +577,8 @@ export default function QuanLiSanPhamPage() {
                                     <option value="ngung_ban">Ngừng bán</option>
                                 </select>
                             </Field>
-                            
-                            
+
+
                             <Field label="Công thức">
                                 {editForm.congThucList.map((ct, i) => (
                                     <div key={i} className="flex gap-2 items-center">
@@ -553,7 +589,7 @@ export default function QuanLiSanPhamPage() {
                                                 next[i].maNL = Number(e.target.value);
                                                 setEditForm({ ...editForm, congThucList: next });
                                             }}
-                                            className={inputCls + " flex-1"}
+                                            className={inputCls.replace("w-full", "flex-1")}
                                         >
                                             <option value={0} disabled>Chọn nguyên liệu</option>
                                             {nguyenLieuList.map((nl) => (
@@ -562,6 +598,8 @@ export default function QuanLiSanPhamPage() {
                                         </select>
                                         <input
                                             type="number"
+                                            step="any"
+                                            min="0"
                                             value={ct.dinhLuong}
                                             onChange={(e) => {
                                                 const next = [...editForm.congThucList];
@@ -569,7 +607,7 @@ export default function QuanLiSanPhamPage() {
                                                 setEditForm({ ...editForm, congThucList: next });
                                             }}
                                             placeholder="Định lượng"
-                                            className={inputCls + " w-24"}
+                                            className={inputCls.replace("w-full", "w-28")}
                                         />
                                         <button
                                             onClick={() => setEditForm({
@@ -604,7 +642,7 @@ export default function QuanLiSanPhamPage() {
                                                 setEditForm({ ...editForm, sizes: next });
                                             }}
                                             placeholder="VD: M, 16cm"
-                                            className={inputCls + " flex-1"}
+                                            className={inputCls.replace("w-full", "flex-1")}
                                         />
                                         <input
                                             type="number"
@@ -615,7 +653,7 @@ export default function QuanLiSanPhamPage() {
                                                 setEditForm({ ...editForm, sizes: next });
                                             }}
                                             placeholder="Giá"
-                                            className={inputCls + " flex-1"}
+                                            className={inputCls.replace("w-full", "flex-1")}
                                         />
                                         <button
                                             onClick={() => setEditForm({
@@ -652,7 +690,7 @@ export default function QuanLiSanPhamPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-3 px-6 pb-5">
+                        <div className="flex gap-3 px-6 pb-5 pt-4 shrink-0 border-t border-[#e8d5b0] mt-2">
                             <button
                                 onClick={() => setEditTarget(null)}
                                 className="flex-1 py-2 rounded-xl border border-[#e8d5b0] text-sm text-[#8a6040] hover:bg-[#fdf6e3] transition-colors"
@@ -673,7 +711,7 @@ export default function QuanLiSanPhamPage() {
             {/* ── Modal Thêm mới ── */}
             {showAdd && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[90vh]">
                         {/* Header */}
                         <div className="flex items-center justify-between px-6 py-4 bg-[#fdf6e3] border-b border-[#e8d5b0]">
                             <h3 className="font-bold text-[#3d1f0a]">Thêm mẫu bánh</h3>
@@ -683,7 +721,7 @@ export default function QuanLiSanPhamPage() {
                         </div>
 
                         {/* Form */}
-                        <div className="px-6 py-5 flex flex-col gap-4">
+                        <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto flex-1">
                             <Field label="Hình ảnh">
                                 <input
                                     type="file"
@@ -696,9 +734,9 @@ export default function QuanLiSanPhamPage() {
                                 />
                                 {addForm.fileAnh && (
                                     <div className="mt-2 h-20 w-20 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
-                                        <img 
-                                            src={URL.createObjectURL(addForm.fileAnh)} 
-                                            alt="Preview" 
+                                        <img
+                                            src={URL.createObjectURL(addForm.fileAnh)}
+                                            alt="Preview"
                                             className="h-full w-full object-cover"
                                         />
                                     </div>
@@ -714,12 +752,13 @@ export default function QuanLiSanPhamPage() {
                             </Field>
                             <Field label="Loại bánh">
                                 <select
-                                    value={addForm.category as string}
-                                    onChange={(e) => setAddForm({ ...addForm, category: e.target.value as Exclude<Category, "Tất cả"> })}
+                                    value={addForm.maLoai || (loaiBanhList.length > 0 ? loaiBanhList[0].MaLoai : 0)}
+                                    onChange={(e) => setAddForm({ ...addForm, maLoai: Number(e.target.value) })}
                                     className={inputCls}
                                 >
-                                    <option value="Bánh Mì">Bánh Mì</option>
-                                    <option value="Bánh Kem">Bánh Kem</option>
+                                    {loaiBanhList.map(loai => (
+                                        <option key={loai.MaLoai} value={loai.MaLoai}>{loai.TenLoai}</option>
+                                    ))}
                                 </select>
                             </Field>
                             <Field label="Trạng thái">
@@ -740,8 +779,8 @@ export default function QuanLiSanPhamPage() {
                                     className={inputCls + " resize-none"}
                                 />
                             </Field>
-                            
-                            
+
+
                             <Field label="Công thức">
                                 {addForm.congThucList.map((ct, i) => (
                                     <div key={i} className="flex gap-2 items-center">
@@ -752,7 +791,7 @@ export default function QuanLiSanPhamPage() {
                                                 next[i].maNL = Number(e.target.value);
                                                 setAddForm({ ...addForm, congThucList: next });
                                             }}
-                                            className={inputCls + " flex-1"}
+                                            className={inputCls.replace("w-full", "flex-1")}
                                         >
                                             <option value={0} disabled>Chọn nguyên liệu</option>
                                             {nguyenLieuList.map((nl) => (
@@ -761,6 +800,8 @@ export default function QuanLiSanPhamPage() {
                                         </select>
                                         <input
                                             type="number"
+                                            step="any"
+                                            min="0"
                                             value={ct.dinhLuong}
                                             onChange={(e) => {
                                                 const next = [...addForm.congThucList];
@@ -768,7 +809,7 @@ export default function QuanLiSanPhamPage() {
                                                 setAddForm({ ...addForm, congThucList: next });
                                             }}
                                             placeholder="Định lượng"
-                                            className={inputCls + " w-24"}
+                                            className={inputCls.replace("w-full", "w-28")}
                                         />
                                         <button
                                             onClick={() => setAddForm({
@@ -813,7 +854,7 @@ export default function QuanLiSanPhamPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-3 px-6 pb-5">
+                        <div className="flex gap-3 px-6 pb-5 pt-4 shrink-0 border-t border-[#e8d5b0] mt-2">
                             <button
                                 onClick={() => setShowAdd(false)}
                                 className="flex-1 py-2 rounded-xl border border-[#e8d5b0] text-sm text-[#8a6040] hover:bg-[#fdf6e3] transition-colors"

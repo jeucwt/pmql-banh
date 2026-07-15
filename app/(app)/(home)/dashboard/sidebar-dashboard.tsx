@@ -10,23 +10,23 @@ const DashBoardItems = [
         href: "/dashboard",
     },
     {
-        label: "Quan li san pham",
+        label: "Quản lý sản phẩm",
         href: "/dashboard/cakes",
     },
     {
-        label: "Quan li kho",
+        label: "Quản lý kho nguyên liệu",
         href: "/dashboard/materials",
     },
     {
-        label: "Quan li hoa don",
+        label: "Quản lý hóa đơn",
         href: "/dashboard/bills",
     },
     {
-        label: "Quan li san xuat",
+        label: "Quản lý sản xuất",
         href: "/dashboard/sanxuat",
     },
     {
-        label: "Quan li nhap kho",
+        label: "Quản lý nhập kho",
         href: "/dashboard/nhapkho",
     },
     {
@@ -45,8 +45,7 @@ export default function SideBarDashBoard() {
             {/* Name */}
             <div className="h-14 flex items-center px-5 gap-3 border-b border-[#C8A84B]">
                 <div className="flex items-center gap-2 text-base font-bold text-[#5A3E1B] no-underline">
-                    <span> Logo </span>
-                    <span> Banh</span>
+                    <a href="/" className="cursor-pointer" style={{ fontSize: 20, color: "#5C2D0A", fontWeight: 700, textDecoration: "none" }}>Jeucwt's Bakery</a>
                 </div>
             </div>
             {/* Nav Links */}

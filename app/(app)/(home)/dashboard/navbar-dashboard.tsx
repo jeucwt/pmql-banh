@@ -12,10 +12,11 @@ const ROLE_LABELS: Record<string, string> = {
 const PAGE_TITLES: Record<string, string> = {
     "/dashboard": "Doanh Thu",
     "/dashboard/cakes": "Quản lí sản phẩm",
-    "/dashboard/materials": "Quản lí nguyên liệu",
+    "/dashboard/materials": "Quản lí kho nguyên liệu",
     "/dashboard/bills": "Quản lí hóa đơn",
     "/dashboard/sanxuat": "Quản lí sản xuất",
     "/dashboard/nhapkho": "Quản lí nhập kho",
+    "/dashboard/don-cho-sx": "Đơn chờ sản xuất",
 };
 
 export const NavbarDashBoard = () => {

@@ -27,14 +27,14 @@ export const Categories = ({
                     return (
                         <button
                             key={category}
-                            onClick={() => handleSelect(category)}
+                            onClick={() => onSelect?.(category)}
                             aria-pressed={isActive}
-                            className={[
-                                "whitespace-nowrap text-center p-4 hover:bg-[#FFFDBBB] hover:text-black flex items-center justify-between text-base font-medium rounded-md",
+                            style={
                                 isActive
-                                    ? "bg-[#FFFDBBB] text-black"
-                                    : "",
-                            ].join(" ")}
+                                    ? { backgroundColor: "#664930", color: "#FFF8F0", borderColor: "#664930" }
+                                    : { backgroundColor: "transparent", color: "#664930", borderColor: "#CCBEB1" }
+                            }
+                            className="whitespace-nowrap text-center px-4 py-2 text-sm rounded-full border transition-colors hover:opacity-80"
                         >
                             {label}
                         </button>

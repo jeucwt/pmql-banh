@@ -31,6 +31,7 @@ app.use('/api/admin/kho', require('./routes/kho.route'));
 app.use('/api/admin/phieunhap', require('./routes/phieunhap.route'));
 app.use('/api/admin/nhacc', require('./routes/nhacc.route'));
 app.use('/api/admin/congthuc', require('./routes/congthuc.route'));
+app.use('/api/loaibanh', require('./routes/loaibanh.route'));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

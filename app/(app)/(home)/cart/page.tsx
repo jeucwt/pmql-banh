@@ -30,10 +30,10 @@ export default function CartPage() {
     }
 
     return (
-        <div style={{ backgroundColor: "#FFF8F0" }} className="min-h-screen">
+        <div style={{ backgroundColor: "#FFF8F0" }} className="min-h-screen flex flex-col">
             <Navbar />
 
-            <main className="max-w-4xl mx-auto px-6 py-12">
+            <main className="max-w-4xl mx-auto px-6 py-12 flex-grow w-full">
                 <h1 className="text-3xl font-bold mb-8" style={{ color: "#664930" }}>Giỏ hàng của bạn</h1>
 
                 {items.length === 0 ? (

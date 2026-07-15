@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/AuthContext";
 import { NavbarLanding } from "./navbar";
 import { Footer } from "../footer/footer";
-import { LandingCard } from "../landingcard/page";
+import LandingCard from "../landingcard/page";
 import { Toast } from "../landingcard/toast";
 import { LogInPrompt } from "../login/loginprompt";
 

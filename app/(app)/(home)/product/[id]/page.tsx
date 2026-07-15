@@ -33,11 +33,13 @@ export default function ProductDetailPage({
 
   if (loading) {
     return (
-      <div style={{ backgroundColor: "#FFFDBBB" }} className="min-h-screen">
+      <div style={{ backgroundColor: "#FFFDBBB" }} className="min-h-screen flex flex-col">
         <Navbar />
-        <p className="text-center py-20" style={{ color: "#997E67" }}>
-          Đang tải...
-        </p>
+        <main className="flex-1 w-full flex items-center justify-center">
+          <p className="text-center py-20" style={{ color: "#997E67" }}>
+            Đang tải...
+          </p>
+        </main>
         <Footer />
       </div>
     );
@@ -45,9 +47,9 @@ export default function ProductDetailPage({
 
   if (error || !product) {
     return (
-      <div style={{ backgroundColor: "#FFF8F0" }} className="min-h-screen">
+      <div style={{ backgroundColor: "#FFF8F0" }} className="min-h-screen flex flex-col">
         <Navbar />
-        <main className="max-w-4xl mx-auto px-6 py-20 text-center">
+        <main className="max-w-4xl mx-auto px-6 py-20 text-center flex-1 w-full">
           <p style={{ color: "#664930" }} className="text-xl font-semibold">
             Không tìm thấy sản phẩm.
           </p>
@@ -101,10 +103,10 @@ export default function ProductDetailPage({
     router.push("/checkout");
   }
   return (
-    <div style={{ backgroundColor: "#FFF8F0" }} className="min-h-screen">
+    <div style={{ backgroundColor: "#FFF8F0" }} className="min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-6 py-8 flex-1 w-full">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm mb-6" style={{ color: "#997E67" }}>
           <Link href="/" className="hover:underline">
@@ -120,29 +122,36 @@ export default function ProductDetailPage({
         <div className="flex flex-col md:flex-row gap-10">
           {/* Image */}
           <div
-            className="md:w-1/2 rounded-2xl overflow-hidden flex items-center justify-center"
+            className="md:w-1/2 rounded-2xl overflow-hidden flex items-center justify-center relative"
             style={{ backgroundColor: "#FFDBBB", minHeight: "360px" }}
           >
-            {/* Placeholder hình ảnh */}
-            <div className="flex flex-col items-center gap-3 opacity-40">
-              <svg
-                width="80"
-                height="80"
-                viewBox="0 0 80 80"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <rect width="80" height="80" rx="16" fill="#CCBEB1" />
-                <path
-                  d="M20 55 L30 40 L40 48 L52 30 L60 55 Z"
-                  fill="#997E67"
-                />
-                <circle cx="28" cy="30" r="6" fill="#997E67" />
-              </svg>
-              <span style={{ color: "#664930", fontSize: 13 }}>
-                Hình ảnh sản phẩm
-              </span>
-            </div>
+            {product.HinhAnh ? (
+              <img
+                src={`http://localhost:3001${product.HinhAnh}`}
+                alt={product.TenBanh}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-3 opacity-40 z-10">
+                <svg
+                  width="80"
+                  height="80"
+                  viewBox="0 0 80 80"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <rect width="80" height="80" rx="16" fill="#CCBEB1" />
+                  <path
+                    d="M20 55 L30 40 L40 48 L52 30 L60 55 Z"
+                    fill="#997E67"
+                  />
+                  <circle cx="28" cy="30" r="6" fill="#997E67" />
+                </svg>
+                <span style={{ color: "#664930", fontSize: 13 }}>
+                  Hình ảnh sản phẩm
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Info */}
